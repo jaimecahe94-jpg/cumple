@@ -7,6 +7,7 @@ interface Comment {
   text: string
   date: string
   edited?:boolean
+  isMine?:boolean
 }
 
 // URL del backend - cambiar según donde esté desplegado
@@ -25,12 +26,26 @@ function App() {
   const [editText, setEditText] = useState('')
 
 
+  const getSessionId = () => {
+    const key = 'cumple_session_id'
+    let id = localStorage.getItem(key)
+    if (!id) {
+      id = (crypto as any).randomUUID
+        ? crypto.randomUUID()
+        : String(Date.now()) + Math.random().toString(16).slice(2)
+      localStorage.setItem(key, id)
+    }
+    return id
+  }
+  
   useEffect(() => {
     // Cargar comentarios del backend
     const loadComments = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`${API_URL}/comments`)
+        const response = await fetch(`${API_URL}/comments`, {
+          headers: { 'X-Session-Id': getSessionId() }
+        })
         if (response.ok) {
           const data = await response.json()
           setComments(data)
@@ -83,6 +98,7 @@ function App() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'X-Session-Id': getSessionId(),
           },
           body: JSON.stringify({
             name: commentName.trim(),
@@ -151,7 +167,9 @@ function App() {
 
       const response = await fetch(`${API_URL}/comments/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json',
+                   'X-Session-Id': getSessionId(),
+                 },
         body: JSON.stringify({
           name: editName.trim(),
           text: editText.trim(),
@@ -184,6 +202,7 @@ function App() {
 
       const response = await fetch(`${API_URL}/comments/${id}`, {
         method: 'DELETE',
+        headers: { 'X-Session-Id': getSessionId() }
       })
 
       if (response.status !== 204) {
@@ -675,18 +694,18 @@ function App() {
                       <div className="comment-text">{escapeHtml(comment.text)}</div>
                       <div className="comment-date">{comment.date}</div>
 
-                      {id && (
+                      {comment.isMine && id && (
                         <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
-                            <button
+                          <button
                             type="button"
                             className="submit-btn"
                             style={{ padding: '0.55rem 1rem' }}
                             onClick={() => startEdit(comment)}
                           >
                             EDITAR
-                            </button>
-
-                            <button
+                          </button>
+                      
+                          <button
                             type="button"
                             className="submit-btn"
                             style={{ padding: '0.55rem 1rem', opacity: 0.85 }}
